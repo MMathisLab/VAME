@@ -44,10 +44,17 @@ def future_reconstruction_loss(x, x_tilde, reduction):
 
 def cluster_loss(H, kloss, lmbda, batch_size):
     gram_matrix = (H.T @ H) / batch_size
-    _ ,sv_2, _ = torch.svd(gram_matrix)
+    try:
+        _ ,sv_2, _ = torch.svd(gram_matrix)
+    except:                     # torch.svd may have convergence issues for GPU and CPU.
+        _ ,sv_2, _ = torch.svd(gram_matrix + 1e-4*gram_matrix.mean()*torch.rand(1, 1))
+
+    #_ ,sv_2, _ = torch.svd(gram_matrix)
     sv = torch.sqrt(sv_2[:kloss])
     loss = torch.sum(sv)
     return lmbda*loss
+
+
 
 
 def kullback_leibler_loss(mu, logvar):
@@ -92,7 +99,7 @@ def gaussian(ins, is_training, seq_len, std_n=0.8):
 
 
 def train(train_loader, epoch, model, optimizer, anneal_function, BETA, kl_start,
-          annealtime, seq_len, future_decoder, future_steps, scheduler, mse_red, 
+          annealtime, seq_len, future_decoder, future_steps, scheduler, mse_red,
           mse_pred, kloss, klmbda, bsize, noise):
     model.train() # toggle model to train mode
     train_loss = 0.0
@@ -137,11 +144,11 @@ def train(train_loader, epoch, model, optimizer, anneal_function, BETA, kl_start
             kmeans_loss = cluster_loss(latent.T, kloss, klmbda, bsize)
             kl_weight = kl_annealing(epoch, kl_start, annealtime, anneal_function)
             loss = rec_loss + BETA*kl_weight*kl_loss + kl_weight*kmeans_loss
-        
+
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        
+
         # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm = 5)
 
         train_loss += loss.item()
@@ -151,7 +158,7 @@ def train(train_loader, epoch, model, optimizer, anneal_function, BETA, kl_start
 
         if idx % 1000 == 0:
             print('Epoch: %d.  loss: %.4f' %(epoch, loss.item()))
-   
+
     scheduler.step() #be sure scheduler is called before optimizer in >1.1 pytorch
 
     if future_decoder:
@@ -217,7 +224,7 @@ def train_model(config):
     model_name = cfg['model_name']
     pretrained_weights = cfg['pretrained_weights']
     pretrained_model = cfg['pretrained_model']
-    
+
     print("Train Variational Autoencoder - Model name: %s \n" %model_name)
     if not os.path.exists(os.path.join(cfg['project_path'],'model','best_model',"")):
         os.mkdir(os.path.join(cfg['project_path'],'model','best_model',""))
@@ -234,7 +241,7 @@ def train_model(config):
         torch.device("cpu")
         print("warning, a GPU was not found... proceeding with CPU (slow!) \n")
         #raise NotImplementedError('GPU Computing is required!')
-        
+
     """ HYPERPARAMTERS """
     # General
     CUDA = use_gpu
@@ -277,7 +284,7 @@ def train_model(config):
     BEST_LOSS = 999999
     convergence = 0
     print('Latent Dimensions: %d, Time window: %d, Beta: %d, lr: %.4f\n' %(ZDIMS, cfg['time_window'], BETA, LEARNING_RATE))
-    
+
     # simple logging of diverse losses
     train_losses = []
     test_losses = []
@@ -288,7 +295,7 @@ def train_model(config):
     fut_losses = []
 
     torch.manual_seed(SEED)
-    
+
     if legacy == False:
         RNN = RNN_VAE
     else:

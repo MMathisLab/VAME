@@ -46,8 +46,8 @@ def cluster_loss(H, kloss, lmbda, batch_size):
     gram_matrix = (H.T @ H) / batch_size
     try:
         _ ,sv_2, _ = torch.svd(gram_matrix)
-    except:                     # torch.svd may have convergence issues for GPU and CPU.
-        _ ,sv_2, _ = torch.svd(gram_matrix + 1e-4*gram_matrix.mean()*torch.rand(1, 1))
+    except:                   
+        print("svd not converging?")
 
     #_ ,sv_2, _ = torch.svd(gram_matrix)
     sv = torch.sqrt(sv_2[:kloss])

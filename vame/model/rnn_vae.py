@@ -42,9 +42,8 @@ def future_reconstruction_loss(x, x_tilde, reduction):
     rec_loss = mse_loss(x_tilde,x)
     return rec_loss
 
-def cluster_loss_fast(H, kloss, lmbda):
-    batch_size = H.size(0)
-    _ ,sv_2, _ = torch.svd(H)
+def cluster_loss(H, kloss, lmbda, batch_size):
+    _ ,sv_2, _ = batch_size
     sv = sv_2[:kloss] / batch_size**.5
     loss = torch.sum(sv)
     return lmbda*loss
